@@ -1,11 +1,72 @@
+// var pug = require('pug');
+const startupDebugger = require('debug') ('app:startup')
+const dbDebugger = require('debug') ('app:db')
 
+const config = require('config')
+const morgan = require('morgan')
+const helmet = require('helmet')
 const Joi =  require('joi'); // returns a class , so pascal notn in class var/const by convention
 const express = require('express');
 const dotenv = require('dotenv')
 const app = express(); // express() func returns an object of type express, conventionally called an app
 //this has   http methods {get,post,put ,delete}
+
+app.set('view engine','pug')
+app.set('views','./views')//default
+
+app.get('/', (req, res) => {
+    // Render a Pug file named 'index.pug' located in the 'views' directory
+    // const message = 'Hello Express from Tushar';
+    const hero = 'Tushar';
+
+    res.render('index',{hero});
+  });
+
+
+
+// detecting environment on which code is working
+// console.log(process.env.NODE_ENV)
+//undefined if it is not set
+// console.log(`app:${app.get('env')}`)
+// but it returns development when it is not set
+
+
+
+
+
 dotenv.config()
 app.use(express.json());
+app.use(express.urlencoded({extended:true})); // key = value & key = value
+app.use(express.static('public')); 
+const logger = require('./logger')
+app.use(helmet())
+
+//configuration
+console.log('Application Name:' + config.get('name'))
+console.log('Mail Server:' + config.get('mail.host'))
+// console.log('Mail password:' + config.get('mail.password'))
+
+if(app.get('env') === 'development'){
+    app.use(morgan('tiny'))
+    // console.log('Morgan enabled..')
+    startupDebugger('Morgan enabled..')
+}
+
+//Data base work
+dbDebugger("connected to the database")
+
+
+//  [[two difff things ]]
+// console.log(process.env.NODE_ENV)
+// console.log(process.env)
+
+// middleware
+app.use(logger)
+
+// app.use(function(req,res,next){
+//     console.log("authenticating ...")
+//     next();
+// })
 
 const courses =[
     {id:1,name:"course1"},
@@ -13,9 +74,11 @@ const courses =[
     {id:3,name:"course3"}
 ]
 
-app.get('/',(req,res)=>{
-    res.send('Hello Express from Tushar ')
-})
+// app.get('/',(req,res)=>{
+//     // res.send('Hello Express from Tushar ')
+//     res.render('index',{title : 'My Express App', message:'Hello Express from Tushar'})
+// })
+
 app.get('/api/courses',(req,res)=>{
     //logic to get list of database from the courses
     res.send(courses)
@@ -53,8 +116,12 @@ app.post('/api/courses',(req,res)=>{
         .required()
     })
     
-    const { error, value } = schema.validate({ name: 'ABC' }); // Valid because 'ABC' has 3 characters
-    
+    const { error, value } = schema.validate(req.body); 
+    // console.log(error)
+    // console.log(value)
+    if(error){
+        return res.send(error.details[0].message)
+    }
   
     
    const course ={
@@ -76,7 +143,7 @@ app.put('/api/courses/:id',(req,res)=>{
     const course = courses.find(c=> c.id === parseInt(req.params.id))
     if(!course) res.status(404).send('The course with the given id doesnt exist')
 
-    // validation logicc here
+    // validation logic here
 
     course.name == req.body.name;
     res.send(course)
@@ -98,16 +165,6 @@ app.delete('/api/courses/:id',(req,res)=>{
 
     //return the same course
 })
-
-
-
-
-
-
-
-
-
-
 
 
 
